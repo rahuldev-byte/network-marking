@@ -1,0 +1,16 @@
+# Ready-to-run example using the two included CSVs and live OpenStreetMap roads.
+# Paths are relative to this file. Run from the project root:
+#   cspmap run --config examples/pilot.toml
+# Requires an internet connection to the OSM Overpass API.
+# For an offline replay, override with --roads outputs/pilot-code-review/osm_roads.json
+splitters = "../splitter_points.csv"
+households = "../active_base_mobile_lat_long_time_added_20261022.csv"
+output = "../outputs/osm-pilot"
+auto_pilot = true
+download_osm = true
+
+# Exploratory settings; not verified physical cable distances.
+x_m = 100
+snap_m = 30
+ambiguity_m = 2
+compare_x = [50, 200]

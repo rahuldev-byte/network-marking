@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "csp-footprint-mapper"
+version = "0.1.0"
+description = "GeoPandas-based splitter ownership and road connectivity analysis"
+requires-python = ">=3.11"
+dependencies = [
+    "geopandas>=1.0,<2",
+    "pandas>=2.2,<4",
+    "shapely>=2.0,<3",
+    "pyproj>=3.6,<4",
+    "folium>=0.20,<1",
+    "branca>=0.8,<1",
+]
+
+[project.optional-dependencies]
+dev = ["ruff"]
+
+[project.scripts]
+cspmap = "cspmap.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cspmap*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+cspmap = ["web/*.js"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

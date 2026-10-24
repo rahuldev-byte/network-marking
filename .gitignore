@@ -1,0 +1,49 @@
+# Share only the declared top-level project files and source directories.
+# Add an exception here when introducing another shared root entry.
+/*
+!/.gitignore
+!/README.md
+!/ARCHITECTURE.md
+!/pyproject.toml
+!/cspmap/
+!/examples/
+!/tests/
+
+# JavaScript checks included with the application
+/tests/*.js
+!/tests/map_smoke.js
+
+# Python bytecode, environments and tool caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Python build artifacts
+/build/
+/dist/
+*.egg-info/
+
+# Local environment settings and credentials
+.env
+.env.*
+!.env.example
+!.env.template
+/.aws/
+
+# Logs and editor/OS temporary files
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
