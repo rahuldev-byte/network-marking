@@ -58,6 +58,28 @@ compare_x = [50, 200]
         args = self.parse('map = true', "--no-map", command="profile")
         self.assertFalse(args.map)
 
+    def test_abbreviated_flags_are_rejected_with_and_without_config(self):
+        for command in ("run", "profile"):
+            for configured in (False, True):
+                with self.subTest(command=command, configured=configured):
+                    errors = io.StringIO()
+                    argv = [command, "--out", "somewhere"]
+                    if command == "run":
+                        argv += ["--auto-pilot", "--points-only"]
+                    if configured:
+                        self.config.write_text('output = "configured"')
+                        argv += ["--config", str(self.config)]
+                    with contextlib.redirect_stderr(errors), \
+                            self.assertRaises(SystemExit):
+                        CommandLine().parse(argv)
+                    self.assertIn("unrecognized arguments: --out", errors.getvalue())
+
+    def test_full_points_only_flag_overrides_configured_roads(self):
+        args = self.parse('auto_pilot = true\nroads = "roads.geojson"',
+                          "--points-only")
+        self.assertTrue(args.points_only)
+        self.assertIsNone(args.roads)
+
     def test_unknown_fields_and_wrong_types_are_rejected(self):
         for text in (
             'snap_distance = 30', 'auto_pilot = "yes"', 'roads = 123',

@@ -14,7 +14,7 @@ from .quality import profile
 from .regions import auto_pilot, bounds, inside
 from .road_download import download_osm
 from .road_loaders import load_roads
-from .run_output import RegionalOutputWriter, prepare_output
+from .run_output import RegionalOutputWriter, staged_output
 from .serialization import write_json
 from .summary import regional_summary
 from .tabular_output import review_csv
@@ -44,6 +44,12 @@ class ProfileWorkflow:
     """Export source-quality evidence even when no pilot can be selected."""
 
     def execute(self, data: InputData, output, include_map: bool) -> dict:
+        with staged_output(output) as staging:
+            write_json(staging / "data_quality.json", data.quality)
+            result = self._write(data, staging, include_map)
+        return {**result, "output": str(output)}
+
+    def _write(self, data: InputData, output, include_map: bool) -> dict:
         write_json(output / "pilot_suggestion.json", self._suggestion(data.splitters))
         review_csv(
             output / "splitter_review.csv",
@@ -92,12 +98,19 @@ class RegionalWorkflow:
         households = [point for point in data.households if inside(point, bbox)]
         self._validate_size(points, settings.points_only)
         config = settings.configuration(bbox, len(points), len(households))
-        write_json(settings.output / "config.json", config)
+        with staged_output(settings.output) as output:
+            summary = self._write(data, settings, bbox, points, households,
+                                  config, output)
+        return {
+            "output": str(settings.output),
+            **{key: value for key, value in summary.items()
+               if key not in {"by_partner", "limitations"}},
+        }
+
+    def _write(self, data, settings, bbox, points, households, config, output):
         roads, result, sensitivity = None, None, []
         if not settings.points_only:
-            roads = self._roads(settings, bbox, config)
-            data.quality["roads_available_in_inputs"] = True
-            write_json(settings.output / "data_quality.json", data.quality)
+            roads = self._roads(settings, bbox, config, output)
             analysis = RoadAnalysis(roads, settings.snap_m, settings.ambiguity_m)
             results = analysis.evaluate(points, settings.thresholds)
             result = next(row for row in results if row.x_m == settings.x_m)
@@ -106,14 +119,14 @@ class RegionalWorkflow:
                 row.sensitivity_row() for row in sorted(results, key=lambda r: r.x_m)
             ]
         summary = regional_summary(points, households, result)
-        RegionalOutputWriter(settings.output).write(
+        write_json(output / "config.json", config)
+        write_json(output / "data_quality.json", {
+            **data.quality, "roads_available_in_inputs": roads is not None,
+        })
+        RegionalOutputWriter(output).write(
             points, households, config, summary, sensitivity, roads, result
         )
-        return {
-            "output": str(settings.output),
-            **{key: value for key, value in summary.items()
-               if key not in {"by_partner", "limitations"}},
-        }
+        return summary
 
     @staticmethod
     def _validate_size(points, points_only: bool) -> None:
@@ -126,22 +139,23 @@ class RegionalWorkflow:
             )
 
     @staticmethod
-    def _roads(settings, bbox, config):
+    def _roads(settings, bbox, config, output):
         projection = MetricProjection((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
         for lon in (bbox[0], bbox[2]):
             for lat in (bbox[1], bbox[3]):
                 projection.project(lon, lat)
         path = settings.roads
         if settings.download:
-            path = settings.output / "osm_roads.json"
+            path = output / "osm_roads.json"
             padding = max(settings.thresholds) + settings.snap_m + 100
             download_osm(bbox, padding, path)
         roads = load_roads(path, projection)
         config.update(
-            projection=projection.metadata, road_file=str(path),
+            projection=projection.metadata,
+            road_file=str(settings.output / "osm_roads.json"
+                          if settings.download else path),
             direction_policy=DIRECTION_POLICY,
         )
-        write_json(settings.output / "config.json", config)
         return roads
 
 
@@ -150,8 +164,6 @@ class MappingApplication:
 
     def execute(self, args) -> dict:
         data = InputData.read(args.splitters, args.households)
-        prepare_output(args.output)
-        write_json(args.output / "data_quality.json", data.quality)
         if args.command == "profile":
             return ProfileWorkflow().execute(data, args.output, args.map)
         return RegionalWorkflow().execute(data, RunSettings.from_arguments(args))

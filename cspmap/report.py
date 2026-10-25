@@ -16,7 +16,7 @@ REVIEW_ACTIONS = (
     "ownership or deriving served-area boundaries.",
 )
 OUTPUT_DESCRIPTIONS = (
-    "- map.html: a combined provider network on OSM roads; browser assets "
+    "- map.html: a combined provider network on the supplied roads; browser assets "
     "and OSM basemap tiles require internet.",
     "- config.json, summary.json, sensitivity.json, patches.json: settings and "
     "machine-readable results.",
@@ -66,7 +66,7 @@ class PilotReviewReport:
             "Filter by CSP or inspect outlined splitters needing review.",
             "Recorded CSP ownership is retained. Household ownership is unassigned.",
             "All splitters appear once, together with inferred routes and dashed "
-            "GPS-to-road snap offsets (not verified cables). The OSM road "
+            "GPS-to-road snap offsets (not verified cables). The supplied road "
             "graph is visible; households are an optional owner-unknown layer. "
             "Expand About this map or inspect splitter and route popups.",
             "",

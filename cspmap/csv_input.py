@@ -1,5 +1,7 @@
 """Read supported CSV schemas without retaining household phone numbers."""
 
+import csv
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -52,15 +54,7 @@ class CsvPointReader:
 
     def read_frame(self, path: Path) -> gpd.GeoDataFrame:
         """Read contracted columns, retaining invalid locations as null geometry."""
-        try:
-            columns = pd.read_csv(path, nrows=0, encoding="utf-8-sig").columns
-            self._validate_columns(path, columns)
-            table = pd.read_csv(
-                path, dtype=str, keep_default_na=False, encoding="utf-8-sig",
-                usecols=lambda name: name in self.schema.required_columns,
-            )
-        except (pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
-            raise ValueError(f"{path}: invalid or empty CSV: {exc}") from exc
+        table = self._read_table(Path(path))
         if table.empty:
             raise ValueError(f"{path}: no data records")
         latitude = pd.to_numeric(table[self.schema.latitude], errors="coerce")
@@ -72,7 +66,38 @@ class CsvPointReader:
         )
         return gpd.GeoDataFrame(table, geometry=geometry, crs=WGS84)
 
+    def _read_table(self, path: Path) -> pd.DataFrame:
+        """Validate raw records before selecting columns; never rewrite input."""
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            reader = csv.reader(handle, strict=True)
+            try:
+                rows = (row for row in reader if row and not (
+                    len(row) == 1 and not row[0].strip()
+                ))
+                columns = next(rows, [])
+                self._validate_columns(path, columns)
+                indices = [i for i, name in enumerate(columns)
+                           if name in self.schema.required_columns]
+                selected = []
+                for row in rows:
+                    if len(row) != len(columns):
+                        raise ValueError(
+                            f"{path}: CSV record ending on line {reader.line_num} "
+                            f"has {len(row)} fields; expected {len(columns)}"
+                        )
+                    selected.append([row[i] for i in indices])
+            except csv.Error as exc:
+                raise ValueError(
+                    f"{path}: invalid CSV near line {reader.line_num}: {exc}"
+                ) from exc
+        return pd.DataFrame(selected, columns=[columns[i] for i in indices])
+
     def _validate_columns(self, path, columns) -> None:
+        if not columns:
+            raise ValueError(f"{path}: invalid or empty CSV: missing header")
+        duplicates = [name for name, count in Counter(columns).items() if count > 1]
+        if duplicates:
+            raise ValueError(f"{path}: duplicate CSV column names are not allowed")
         missing = self.schema.required_columns - set(columns)
         if missing:
             raise ValueError(f"{path}: missing columns: {', '.join(sorted(missing))}")

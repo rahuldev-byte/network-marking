@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .metric_service import MetricsService
 from .metrics_report import write_report
-from .run_output import prepare_output
+from .run_output import staged_output
 from .serialization import write_json
 from .statistics import distribution, overlap, partition_stability, percent
 from .tabular_output import write_records
@@ -30,11 +30,11 @@ def main(argv=None):
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args(argv)
     try:
-        prepare_output(args.output)
-        metrics = analyse(args.run)
-        write_json(args.output / "metrics.json", metrics)
-        write_report(args.output / "METRICS.md", metrics)
-        write_records(args.output / "per_csp_metrics.csv", metrics["per_csp"])
+        with staged_output(args.output) as output:
+            metrics = analyse(args.run)
+            write_json(output / "metrics.json", metrics)
+            write_report(output / "METRICS.md", metrics)
+            write_records(output / "per_csp_metrics.csv", metrics["per_csp"])
     except (ValueError, OSError, KeyError, TypeError) as exc:
         print(f"cspmap.metrics: {exc}", file=sys.stderr)
         return 1

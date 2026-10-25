@@ -94,7 +94,8 @@ class ResultLayers:
         roads = [feature({"type": "LineString", "coordinates": line}, {})
                  for line in self.data["roads"]]
         if roads:
-            group = folium.FeatureGroup(name="Road graph · OSM geometry")
+            source = "OSM" if self.data["osm"] else "Company"
+            group = folium.FeatureGroup(name=f"Road graph · {source} geometry")
             spatial_layer(roads, "Road topology", "#65746e", style={
                 "weight": 1.25, "opacity": 0.27,
             }).add_to(group)

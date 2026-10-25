@@ -25,6 +25,40 @@ class GeoPandasTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
 
+    def test_csv_rejects_shifted_truncated_and_duplicate_fields_without_writing(self):
+        path = self.root / "malformed.csv"
+        header = "partner_id,latitude,longitude\n"
+        cases = [
+            (header + "owner,28,77,88\n", "line 2.*4 fields; expected 3"),
+            (header + "owner,28,77\nowner,29,78,88\n", "line 3.*4 fields"),
+            (header + "owner,28\n", "line 2.*2 fields; expected 3"),
+            ("partner_id,latitude,latitude,longitude\nowner,28,29,77\n",
+             "duplicate CSV column"),
+            (header + '"owner,28,77\n', "invalid CSV"),
+        ]
+        for source, error in cases:
+            with self.subTest(error=error):
+                path.write_text(source)
+                before = path.read_bytes()
+                with self.assertRaisesRegex(ValueError, error):
+                    CsvPointReader(SCHEMAS["splitter"]).read(path)
+                self.assertEqual(path.read_bytes(), before)
+
+    def test_csv_preserves_quoted_fields_blank_values_and_record_ids(self):
+        path = self.root / "quoted.csv"
+        path.write_text(
+            '\ufeffpartner_id,latitude,longitude,unused\r\n'
+            '\r\n"owner, one",28,77,"private\r\ntext"\r\n'
+            '000123,,77,private\r\nNA,29,78,private\r\n'
+        )
+        reader = CsvPointReader(SCHEMAS["splitter"])
+        points = reader.read(path)
+        self.assertEqual([p.partner for p in points], ["owner, one", "000123", "NA"])
+        self.assertEqual([p.id for p in points],
+                         ["s-0000001", "s-0000002", "s-0000003"])
+        self.assertEqual([p.valid for p in points], [True, False, True])
+        self.assertNotIn("unused", reader.read_frame(path).columns)
+
     def test_csv_has_declared_crs_null_geometry_and_string_ownership(self):
         path = self.root / "points.csv"
         path.write_text(

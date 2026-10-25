@@ -40,3 +40,22 @@ class MetricsCommandTests(unittest.TestCase):
                 self.assertEqual(status, 1)
                 analyse.assert_not_called()
         self.assertEqual(existing.read_text(), "preserve this")
+
+    def test_report_failure_does_not_leave_partial_metrics(self):
+        output = self.root / "metrics"
+        metrics = {"per_csp": [], "matching": {"rate_pct_all_splitters": {}}}
+        argv = ["--run", "unused", "--output", str(output)]
+        with (
+            patch("cspmap.metrics.analyse", return_value=metrics),
+            patch("cspmap.metrics.write_report", side_effect=OSError("disk error")),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(main(argv), 1)
+        self.assertEqual(list(output.iterdir()), [])
+        with (
+            patch("cspmap.metrics.analyse", return_value=metrics),
+            patch("cspmap.metrics.write_report"),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(main(argv), 0)
+        self.assertTrue((output / "metrics.json").exists())

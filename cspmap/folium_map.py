@@ -39,6 +39,7 @@ class FoliumMapRenderer:
         else:
             description = "Points only · road connectivity has not been calculated"
         attribution = "Road data © OpenStreetMap contributors. " if data["osm"] else ""
+        road_source = "OSM" if data["osm"] else "Company"
         map_view.get_root().html.add_child(Element(
             '<details style="position:fixed;bottom:25px;left:10px;z-index:1000;'
             'background:white;padding:8px 12px;border-radius:4px;'
@@ -51,7 +52,7 @@ class FoliumMapRenderer:
             'Colour identifies the provider. Dark outlines mark splitters needing '
             'review. Solid coloured lines are same-provider routes traced on the road '
             'network. Short dashed lines show GPS-to-road snapping, not verified '
-            'cable. OSM road topology appears faintly behind the network. '
+            f'cable. {road_source} road topology appears faintly behind the network. '
             'Open Layers to toggle the road graph or household reference.</p>'
             f'<small>{attribution}Exploratory estimates; household ownership is '
             'unassigned. Measurement controls do not recalculate '

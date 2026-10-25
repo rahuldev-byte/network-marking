@@ -96,6 +96,7 @@ The values above are exploratory examples, not approved business defaults. `x_m`
 - Use `--no-compare-x` to disable configured comparisons. For a points-only run, use `--points-only --no-compare-x` and a new output directory.
 - `profile --config FILE` accepts `splitters`, `households`, `output` and `map`; `--no-map` disables a configured map.
 - Unknown keys, wrong value types and conflicting choices are rejected. Existing output folders are still protected.
+- Use complete option names: abbreviated flags are rejected consistently with and without a TOML configuration.
 
 [examples/pilot.toml](examples/pilot.toml) is another editable template. All original flags remain available; `cspmap run --help` lists them. For metrics, use `python -m cspmap.metrics --run outputs/company-pilot --output outputs/company-metrics`.
 
@@ -190,6 +191,11 @@ Provide these CSV schemas. Coordinates must be geographic latitude/longitude in 
 
 Additional columns may be present but are not used to infer ownership. Each record receives a source-row ID. Those IDs remain stable only while the source CSV order stays unchanged.
 
+CSV headers must be unique and each record must have the same number of fields
+as the header. Malformed records are rejected with a line number; the reader
+never rewrites source files. Represent a missing coordinate with an empty field
+while retaining its comma separator. Quoted commas and multiline fields are supported.
+
 By default the CLI reads the bundled `splitter_points.csv` and `active_base_mobile_lat_long_time_added_20261022.csv` from the working directory. For other data, supply `--splitters` and `--households` or use a TOML configuration. Source datasets and generated outputs may be kept outside Git even when included in a distributed archive.
 
 Profile the inputs before road analysis:
@@ -280,7 +286,12 @@ cspmap run --config pilot.toml --roads outputs/pilot-code-review/osm_roads.json 
 
 Overpass JSON must include highway ways and all referenced nodes. Incomplete responses are rejected, and ways tagged `area=yes` are excluded. OSM XML/PBF and GraphML are not supported directly.
 
-If a download fails with a network/DNS error, retry with internet access or use a local road file. A failed run can leave preparation files behind; preserve that directory and choose a new or empty destination for the retry.
+If a download fails with a network/DNS error, retry with internet access or use a
+local road file. Profile, regional and metrics commands build results in a
+temporary sibling directory and publish them only after successful completion.
+A handled failure leaves the destination empty, so you can retry with the same
+output path. Completed results are still protected from overwriting. An abrupt
+process termination can leave a hidden temporary directory beside the destination.
 
 ## Calculate and interpret metrics
 

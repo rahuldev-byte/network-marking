@@ -83,6 +83,7 @@ class MapOutputTests(unittest.TestCase):
 
     def test_osm_tiles_and_combined_network_are_visible_by_default(self):
         data = self.map_data()
+        data["osm"] = True
         data["households"] = [[77, 28]]
         data["splitters"][0].update(matched_lon=77.0001, matched_lat=28)
         data["roads"] = [[[77, 28], [77.001, 28]]]
@@ -103,6 +104,20 @@ class MapOutputTests(unittest.TestCase):
         self.assertIn("About this map", html)
         self.assertIn("Estimated position-to-road snap", html)
         self.assertNotIn("L.Control.MousePosition", html)
+
+    def test_road_labels_and_explanation_follow_the_recorded_source(self):
+        for osm, label in ((False, "Company"), (True, "OSM")):
+            with self.subTest(osm=osm):
+                data = self.map_data()
+                data.update(osm=osm, roads=[[[77, 28], [77.001, 28]]])
+                view = FoliumMapRenderer().build(data)
+                labels = [child.layer_name for child in view._children.values()
+                          if hasattr(child, "layer_name")]
+                self.assertIn(f"Road graph · {label} geometry", labels)
+                html = view.get_root().render()
+                self.assertIn(f"{label} road topology", html)
+                if not osm:
+                    self.assertNotIn("OSM road topology", html)
 
     def test_household_only_overview_still_shows_its_data(self):
         data = self.map_data()

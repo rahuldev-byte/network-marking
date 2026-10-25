@@ -1,6 +1,9 @@
 """Persist a regional result through dedicated output adapters."""
 
+from contextlib import contextmanager
 from pathlib import Path
+from stat import S_IMODE
+from tempfile import TemporaryDirectory
 
 from .map_output import write_map
 from .report import write_review
@@ -17,6 +20,24 @@ def prepare_output(path: Path) -> None:
             f"Output directory {path} is not empty; choose a new directory "
             "to preserve earlier runs"
         )
+
+
+@contextmanager
+def staged_output(path: Path):
+    """Publish a complete directory; failed work leaves the destination empty."""
+    path = Path(path).absolute()
+    if path.is_symlink():
+        raise ValueError("Output directory must not be a symbolic link")
+    prepare_output(path)
+    with TemporaryDirectory(prefix=f".{path.name}-", dir=path.parent) as temporary:
+        staging = Path(temporary)
+        yield staging
+        # Recheck in case another writer populated the destination during work.
+        if path.is_symlink():
+            raise ValueError("Output directory must not be a symbolic link")
+        prepare_output(path)
+        staging.chmod(S_IMODE(path.stat().st_mode))
+        staging.rename(path)
 
 
 class RegionalOutputWriter:

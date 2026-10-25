@@ -32,6 +32,7 @@ class CommandLine:
 
     def __init__(self):
         self.parser = argparse.ArgumentParser(
+            allow_abbrev=False,
             description=(
                 "Map CSP infrastructure footprints from splitters, households "
                 "and explicit road topology."
@@ -39,7 +40,7 @@ class CommandLine:
         )
         commands = self.parser.add_subparsers(dest="command", required=True)
         for name in ("profile", "run"):
-            command = commands.add_parser(name)
+            command = commands.add_parser(name, allow_abbrev=False)
             self._inputs(command, name)
             if name == "profile":
                 command.add_argument(

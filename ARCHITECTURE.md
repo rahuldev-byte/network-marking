@@ -111,4 +111,13 @@ Folium uses Leaflet in a normal browser. It supplies map rendering, layer contro
 
 These are choices based on the current requirements, not comparative benchmarks. See the official [GeoPandas explore API](https://geopandas.org/en/stable/docs/reference/api/geopandas.GeoDataFrame.explore.html), [Leafmap backend overview](https://leafmap.org/get-started/), [Pydeck HTML export API](https://deckgl.readthedocs.io/en/latest/deck.html) and [deck.gl performance guidance](https://deck.gl/docs/developer-guide/performance).
 
-Large full-source HTML maps remain a scaling limitation: every exported feature is loaded in the browser. Regional selection is the supported road-analysis workflow; no national-scale browser performance is promised. A larger viewer may need aggregation, tiled data or a GPU renderer. CDN-free distribution, visual browser automation and independently labelled accuracy evaluation are also separate work. Failed runs can leave partial outputs; the tool preserves existing directories but does not provide transactional publication.
+Large full-source HTML maps remain a scaling limitation: every exported feature is loaded in the browser. Regional selection is the supported road-analysis workflow; no national-scale browser performance is promised. A larger viewer may need aggregation, tiled data or a GPU renderer. CDN-free distribution, visual browser automation and independently labelled accuracy evaluation are also separate work.
+
+`staged_output` in `run_output.py` builds profile, regional and metrics reports in
+a temporary sibling directory, then renames the completed directory onto the
+empty destination. Handled failures clean up staged files and allow a retry;
+existing results are never overwritten. Saved paths refer to the published run,
+not its temporary workspace. Abrupt process termination can leave staging
+directories for later cleanup. The CSV reader validates raw headers and record
+widths before retaining only contracted columns. Provider metrics group each
+source collection once, avoiding repeated full scans per provider.

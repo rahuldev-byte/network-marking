@@ -1,6 +1,6 @@
 """Per-provider descriptive measurements; ownership is never inferred."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 from statistics import mean, median
 
 from .analysis import used_road_length
@@ -44,15 +44,17 @@ def provider_row(owner, points, patches, links, graph) -> dict:
 
 def provider_metrics(result) -> list[dict]:
     """Produce a deterministic provider table, retaining each denominator."""
+    points, patches, links = (defaultdict(list) for _ in range(3))
+    for point in result.points:
+        if point.partner:
+            points[point.partner].append(point)
+    for patch in result.patches:
+        patches[patch['partner_id']].append(patch)
+    for link in result.connections:
+        links[link['partner_id']].append(link)
     return [
         provider_row(
-            owner,
-            [point for point in result.points if point.partner == owner],
-            [patch for patch in result.patches if patch['partner_id'] == owner],
-            [link for link in result.connections if link['partner_id'] == owner],
-            result.graph,
+            owner, points[owner], patches[owner], links[owner], result.graph,
         )
-        for owner in sorted(
-            {point.partner for point in result.points if point.partner},
-        )
+        for owner in sorted(points)
     ]

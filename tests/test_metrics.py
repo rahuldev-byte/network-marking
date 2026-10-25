@@ -1,10 +1,48 @@
 import unittest
+from types import SimpleNamespace
 
 from cspmap.metric_rows import quality_rows, road_rows
 from cspmap.metrics import distribution, overlap, partition_stability, percent
+from cspmap.models import Point, RoadGraph
+from cspmap.provider_metrics import provider_metrics
 
 
 class MetricsTests(unittest.TestCase):
+
+    def test_provider_metrics_preserve_counts_and_shared_road_lengths(self):
+        class SinglePass(list):
+            def __iter__(self):
+                if getattr(self, "iterated", False):
+                    raise AssertionError("Source collection scanned more than once")
+                self.iterated = True
+                return super().__iter__()
+
+        result = SimpleNamespace(
+            points=SinglePass([
+                Point("b", 28, 77, "beta", status="no_road_within_tolerance"),
+                Point("a1", 28, 77, "alpha", status="matched", offset_m=2),
+                Point("a2", 28, 77, "alpha", status="matched", offset_m=4),
+                Point("unknown", 28, 77),
+            ]),
+            patches=SinglePass([{
+                "partner_id": "alpha", "isolated": False, "splitter_count": 2,
+            }]),
+            connections=SinglePass([
+                {"partner_id": "alpha", "piece_ids": ["shared"]},
+                {"partner_id": "alpha", "piece_ids": ["shared"]},
+            ]),
+            graph=RoadGraph({}, {}, {"shared": {"length_m": 10}}),
+        )
+        alpha, beta = provider_metrics(result)
+        self.assertEqual([alpha["partner_id"], beta["partner_id"]], ["alpha", "beta"])
+        self.assertEqual(alpha["splitters"], 2)
+        self.assertEqual(alpha["match_rate_pct"], 100)
+        self.assertEqual(alpha["mean_matched_offset_m"], 3)
+        self.assertEqual(alpha["unique_used_road_length_m"], 10)
+        self.assertEqual(alpha["connected_splitters"], 2)
+        self.assertEqual(beta["unresolved"], 1)
+        self.assertEqual(beta["qualifying_links"], 0)
+        self.assertIsNone(beta["mean_matched_offset_m"])
 
     def test_quantiles_and_empty_distributions(self):
         self.assertEqual(distribution([]), {'count': 0})
